@@ -101,8 +101,8 @@ func InterfaceOverThresholdFill(counterMap CounterMap, t *testing.T) {
 				defer wg.Done()
 				if !counterMap.CompareOrIncrement(hostWrapper, 100) {
 					mu.Lock()
-					defer mu.Unlock()
 					failed[hostWrapper] += 1
+					mu.Unlock()
 				}
 			}(host)
 		}
@@ -141,42 +141,68 @@ func verifyMap(counterMap CounterMap, t *testing.T, iterations int) {
 	}
 }
 
-type mock_queue struct {
-	hostname []string
+func RandomBenchmark(counterMap CounterMap, threshold int) {
+	const iterations = 100
+	total_iterations := iterations * len(hostnames)
+	var wg sync.WaitGroup
+	wg.Add(total_iterations)
+
+	for i := 0; i < total_iterations; i++ {
+		host := hostnames[rand.Intn(len(hostnames))]
+		go func(hostWrapper string) {
+			defer wg.Done()
+			counterMap.CompareOrIncrement(hostWrapper, threshold)
+		}(host)
+	}
+	wg.Wait()
 }
 
-func (m *mock_queue) randomHostname() string {
-	hostname := m.hostname[rand.Intn(len(m.hostname))]
-	return hostname
+func UniformRoundRobinBenchmark(counterMap CounterMap, threshold int) {
+	const iterations = 100
+	var wg sync.WaitGroup
+	wg.Add(iterations * len(hostnames))
+
+	for i := 0; i < iterations; i++ {
+		for _, host := range hostnames {
+			go func(hostWrapper string) {
+				defer wg.Done()
+				counterMap.CompareOrIncrement(hostWrapper, threshold)
+			}(host)
+		}
+	}
+	wg.Wait()
 }
 
-func LoadTestingCounterMap(m CounterMap, queue mock_queue, threshold int) {
-	for i := 0; i < 10000; i++ {
-		hostname := queue.randomHostname()
-		go m.CompareOrIncrement(hostname, threshold)
+func UniformBenchmark(counterMap CounterMap, threshold int) {
+	const iterations = 100
+	var wg sync.WaitGroup
+	wg.Add(iterations * len(hostnames))
+
+	for _, host := range hostnames {
+		for i := 0; i < iterations; i++ {
+			go func(hostWrapper string) {
+				defer wg.Done()
+				counterMap.CompareOrIncrement(hostWrapper, threshold)
+			}(host)
+		}
+	}
+	wg.Wait()
+}
+
+func SuiteBenchmarkRandom(counterMap CounterMap, threshold int, b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		RandomBenchmark(counterMap, threshold)
 	}
 }
 
-func BenchmarkGlobalLockCounterMap(b *testing.B) {
-	m := GlobalLockCounterMap{
-		Counter: make(map[string]int),
+func SuiteBenchmarkUniformRoundRobin(counterMap CounterMap, threshold int, b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		UniformRoundRobinBenchmark(counterMap, threshold)
 	}
-	queue := mock_queue{
-		hostname: []string{
-			"facebook.com",
-			"cnn.com",
-			"youtube.com",
-			"google.com",
-			"reddit.com",
-			"globeandmail.com",
-			"twitter.com",
-			"bing.com",
-			"snapchat.com",
-			"a.com",
-		},
-	}
+}
 
-	for i := 0; i < b.N; i += 1 {
-		LoadTestingCounterMap(&m, queue, 60)
+func SuiteBenchmarkUniform(counterMap CounterMap, threshold int, b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		UniformBenchmark(counterMap, threshold)
 	}
 }

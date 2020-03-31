@@ -4,30 +4,43 @@ import (
 	"testing"
 )
 
-func TestGlobalLockRoundRobinFill(t *testing.T) {
-	m := GlobalLockCounterMap{
+func constructCounter() CounterMap {
+	return &GlobalLockCounterMap{
 		Counter: make(map[string]int),
 	}
-	InterfaceTestRoundRobinFill(&m, t)
+}
+
+func TestGlobalLockRoundRobinFill(t *testing.T) {
+	m := constructCounter()
+	InterfaceTestRoundRobinFill(m, t)
 }
 
 func TestGlobalLockFill(t *testing.T) {
-	m := GlobalLockCounterMap{
-		Counter: make(map[string]int),
-	}
-	InterfaceTestFill(&m, t)
+	m := constructCounter()
+	InterfaceTestFill(m, t)
 }
 
 func TestGlobalLockThresholdRoundRobinFill(t *testing.T) {
-	m := GlobalLockCounterMap{
-		Counter: make(map[string]int),
-	}
-	InterfaceOverThresholdRoundRobinFill(&m, t)
+	m := constructCounter()
+	InterfaceOverThresholdRoundRobinFill(m, t)
 }
 
 func TestGlobalLockThresholdFill(t *testing.T) {
-	m := GlobalLockCounterMap{
-		Counter: make(map[string]int),
-	}
-	InterfaceOverThresholdFill(&m, t)
+	m := constructCounter()
+	InterfaceOverThresholdFill(m, t)
+}
+
+func BenchmarkRandomGlobalLock(b *testing.B) {
+	m := constructCounter()
+	SuiteBenchmarkRandom(m, 100, b)
+}
+
+func BenchmarkUniformRoundRobinGlobalLock10(b *testing.B) {
+	m := constructCounter()
+	SuiteBenchmarkUniformRoundRobin(m, 100, b)
+}
+
+func BenchmarkUniformGlobalLock10(b *testing.B) {
+	m := constructCounter()
+	SuiteBenchmarkUniform(m, 100, b)
 }
