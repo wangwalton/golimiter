@@ -13,7 +13,7 @@ func (m *GlobalLockCounterMap) CompareOrIncrement(key string, threshold int) boo
 	count, ok := m.Counter[key]
 	if ok {
 		if count < threshold {
-			count += 1
+			m.Counter[key] += 1
 			return true
 		} else {
 			return false
@@ -23,3 +23,10 @@ func (m *GlobalLockCounterMap) CompareOrIncrement(key string, threshold int) boo
 		return true
 	}
 }
+
+func (m *GlobalLockCounterMap) ToStandardMap() map[string]int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.Counter
+}
+
